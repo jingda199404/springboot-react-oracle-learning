@@ -1,0 +1,13 @@
+.idea/
+.vscode/
+.DS_Store
+*.iml
+
+backend/target/
+frontend/node_modules/
+frontend/dist/
+
+.env
+*.log
+.tools/
+.run/
