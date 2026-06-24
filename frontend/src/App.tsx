@@ -64,8 +64,8 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
       <section className="auth-intro">
         <span className="eyebrow">JAVA FULL-STACK LAB</span>
         <h1>学んだ技術を、<br />動く形に。</h1>
-        <p>TypeScript React が画面を、Spring Boot REST API が処理を、Oracle がデータを担当します。</p>
-        <div className="tech-row"><span>TypeScript</span><span>React</span><span>REST</span><span>Oracle</span></div>
+        <p>TypeScript React が画面を、Spring Boot REST API が処理を、MySQL がデータを担当します。</p>
+        <div className="tech-row"><span>TypeScript</span><span>React</span><span>REST</span><span>MySQL</span></div>
       </section>
       <section className="auth-card">
         <span className="section-number">{isLogin ? "WELCOME BACK" : "CREATE ACCOUNT"}</span>
@@ -105,9 +105,9 @@ function HomePage({ user, onLogout }: HomePageProps) {
       </section>
       <section className="module-grid">
         <article className="module-card">
-          <span className="module-tag">TYPESCRIPT · REST · JPA · ORACLE</span>
+          <span className="module-tag">TYPESCRIPT · REST · JPA · MYSQL</span>
           <h2>社員管理システム</h2>
-          <p>社員データの登録・取得・編集・削除を通して、TypeScript React から Spring Boot REST API、Oracle までの流れを学習します。</p>
+          <p>社員データの登録・取得・編集・削除を通して、TypeScript React から Spring Boot REST API、MySQL までの流れを学習します。</p>
           <button className="primary-button" onClick={() => navigate("/employees")}>社員管理を開く</button>
         </article>
         <article className="module-card coming-soon"><span className="module-tag">NEXT MODULE</span><h2>次のアイデアを形に</h2><p>認証・認可、ファイルアップロード、メッセージキューなどのモジュールを追加できます。</p></article>

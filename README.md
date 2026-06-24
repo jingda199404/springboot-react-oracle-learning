@@ -1,4 +1,4 @@
-# TypeScript React + Spring Boot REST + Oracle 学習プロジェクト
+# TypeScript React + Spring Boot REST + MySQL 学習プロジェクト
 
 登録・ログインと社員情報の登録、取得、編集、削除を実装した Java フルスタック学習プロジェクトです。
 
@@ -6,8 +6,8 @@
 
 - バックエンド：Java 21、Spring Boot 3.4、Spring Web REST API、Spring Data JPA、Bean Validation
 - フロントエンド：TypeScript、React 19、Vite 6
-- データベース：Oracle Database Free 23ai
-- テスト：Spring Boot Test、MockMvc、H2 Oracle 互換モード
+- データベース：MySQL 8.4 LTS
+- テスト：Spring Boot Test、MockMvc、H2 MySQL 互換モード
 
 ## プロジェクト構成
 
@@ -15,7 +15,7 @@
 .
 ├── backend/                 # Spring Boot REST API
 ├── frontend/                # TypeScript React フロントエンド
-├── compose.yml              # ローカル Oracle Free
+├── compose.yml              # ローカル MySQL
 └── .env.example             # データベース環境変数の例
 ```
 
@@ -24,7 +24,7 @@
 - JDK 21+
 - Maven 3.9+
 - Node.js 20+
-- Docker（ローカル Oracle の起動に使用）
+- Docker（ローカル MySQL の起動に使用）
 
 システムに Java、Maven、Node.js がない場合は、プロジェクト内の開発ツールを読み込めます。
 
@@ -41,7 +41,7 @@ colima start --vm-type vz
 
 ## プロジェクトの起動
 
-### 1. Oracle を起動
+### 1. MySQL を起動
 
 ```bash
 cp .env.example .env
@@ -51,7 +51,7 @@ docker compose up -d
 初回起動には数分かかる場合があります。デフォルト接続情報：
 
 ```text
-URL:        jdbc:oracle:thin:@localhost:1521/FREEPDB1
+URL:        jdbc:mysql://localhost:3306/jingda
 ユーザー名: app_user
 パスワード: app_password
 ```
@@ -60,13 +60,13 @@ URL:        jdbc:oracle:thin:@localhost:1521/FREEPDB1
 
 ```bash
 cd backend
-export DB_URL=jdbc:oracle:thin:@localhost:1521/FREEPDB1
+export DB_URL='jdbc:mysql://localhost:3306/jingda?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Tokyo'
 export DB_USERNAME=app_user
 export DB_PASSWORD=app_password
 mvn spring-boot:run
 ```
 
-バックエンドは `http://localhost:8080` で起動します。初回起動時に Hibernate が必要なテーブルとシーケンスを作成します。
+バックエンドは `http://localhost:8080` で起動します。初回起動時に Hibernate が必要なテーブルと自動採番列を作成します。
 
 ### 3. フロントエンドを起動
 
@@ -124,4 +124,4 @@ java -jar backend/target/employee-api-0.0.1-SNAPSHOT.jar
 
 ブラウザで `http://localhost:8080` を開きます。
 
-バックエンドテストではインメモリデータベースを使用するため、ローカル Oracle は不要です。本番環境では `DDL_AUTO=validate` と Flyway または Liquibase の使用を推奨します。
+バックエンドテストではインメモリデータベースを使用するため、ローカル MySQL は不要です。本番環境では `DDL_AUTO=validate` と Flyway または Liquibase の使用を推奨します。

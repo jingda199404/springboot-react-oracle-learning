@@ -1,21 +1,25 @@
 services:
-  oracle:
-    image: gvenzl/oracle-free:23-slim-faststart
-    container_name: employee-oracle
+  mysql:
+    image: mysql:8.4.9
+    container_name: employee-mysql
     ports:
-      - "1521:1521"
+      - "3306:3306"
     environment:
-      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-oracle_password}
-      APP_USER: ${DB_USERNAME:-app_user}
-      APP_USER_PASSWORD: ${DB_PASSWORD:-app_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysql_root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-jingda}
+      MYSQL_USER: ${DB_USERNAME:-app_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-app_password}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
     volumes:
-      - oracle-data:/opt/oracle/oradata
+      - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "healthcheck.sh"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 60s
+      retries: 10
+      start_period: 30s
 
 volumes:
-  oracle-data:
+  mysql-data:

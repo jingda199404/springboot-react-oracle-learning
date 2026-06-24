@@ -27,3 +27,9 @@ export interface EmployeeForm {
   salary: string | number;
   hireDate: string;
 }
+
+export interface EmployeeImportResponse {
+  imported: number;
+  skipped: number;
+  errors: string[];
+}

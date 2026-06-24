@@ -1,7 +1,9 @@
 package com.example.employee.employee;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -10,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
@@ -40,5 +43,32 @@ class EmployeeControllerTest {
         mockMvc.perform(get("/api/employees"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].email").value("yamada@example.com"));
+    }
+
+    @Test
+    void downloadsTemplateExportsAndImportsExcel() throws Exception {
+        byte[] template = mockMvc.perform(get("/api/employees/template"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+
+        MockMultipartFile upload = new MockMultipartFile(
+                "file",
+                "employee-upload-template.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                template
+        );
+
+        mockMvc.perform(multipart("/api/employees/import").file(upload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imported").value(1));
+
+        mockMvc.perform(get("/api/employees/export"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
     }
 }

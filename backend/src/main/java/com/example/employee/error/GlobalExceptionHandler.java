@@ -35,6 +35,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, "入力内容を確認してください", fields);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException exception) {
+        return error(HttpStatus.BAD_REQUEST, exception.getMessage(), Map.of());
+    }
+
     private ResponseEntity<ApiError> error(HttpStatus status, String message, Map<String, String> fields) {
         return ResponseEntity.status(status)
                 .body(new ApiError(Instant.now(), status.value(), message, fields));

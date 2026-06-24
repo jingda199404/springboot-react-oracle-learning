@@ -166,10 +166,18 @@ input:focus {
 }
 
 .alert {
+  white-space: pre-line;
   padding: 14px 18px;
   border-radius: 12px;
   color: #7c201c;
   background: #ffe5e2;
+}
+
+.success {
+  padding: 14px 18px;
+  border-radius: 12px;
+  color: #315200;
+  background: #efffd3;
 }
 
 .table-wrap {
@@ -211,6 +219,188 @@ td span {
 
 .actions .danger {
   color: #aa3f37;
+}
+
+.employee-list-heading {
+  align-items: center;
+}
+
+.excel-panel {
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(201, 242, 59, 0.08), transparent 42%),
+    rgba(250, 252, 249, 0.92);
+}
+
+.excel-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.excel-panel-heading h2 {
+  margin-top: 5px;
+}
+
+.excel-panel-heading p {
+  margin: 8px 0 0;
+  color: #66706c;
+  font-size: 13px;
+}
+
+.busy-indicator {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #587000;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.busy-indicator span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8baa00;
+  box-shadow: 0 0 0 5px rgba(139, 170, 0, 0.13);
+}
+
+.excel-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.excel-action-card {
+  display: flex;
+  min-width: 0;
+  min-height: 190px;
+  padding: 20px;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid #dfe5e1;
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.featured-action-card {
+  border-color: #bdd944;
+  background: #f4ffd7;
+  box-shadow: inset 0 0 0 1px rgba(189, 217, 68, 0.18);
+}
+
+.action-step {
+  color: #82908a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.featured-action-card .action-step {
+  color: #587000;
+}
+
+.action-copy {
+  display: grid;
+  gap: 5px;
+  margin: 24px 0 20px;
+}
+
+.action-copy strong {
+  font-size: 16px;
+}
+
+.action-copy span {
+  color: #7c8581;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.file-button,
+.refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.file-button {
+  width: 100%;
+  min-height: 42px;
+  margin-top: auto;
+  padding: 10px 14px;
+  border: 1px solid #202825;
+  color: #f7f9f5;
+  font-size: 13px;
+  background: #202825;
+}
+
+.secondary-file-button {
+  color: #34403b;
+  border-color: #ccd4d0;
+  background: #fff;
+}
+
+.file-button:hover:not(:disabled),
+.upload-button:hover:not(.disabled) {
+  transform: translateY(-1px);
+}
+
+.secondary-file-button:hover:not(:disabled) {
+  border-color: #9baa9f;
+  background: #f7faf8;
+}
+
+.upload-button {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.upload-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-button.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.excel-hint {
+  margin: 16px 2px 0;
+  color: #8a938f;
+  font-size: 11px;
+}
+
+.record-count {
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #66706c;
+  font-size: 11px;
+  font-weight: 700;
+  background: #e9eeea;
+}
+
+.refresh-button {
+  padding: 9px 13px;
+  border: 1px solid #d6ddd9;
+  color: #4f5e57;
+  font-size: 12px;
+  background: #fff;
+}
+
+.refresh-button:hover:not(:disabled) {
+  border-color: #9baa9f;
+  background: #f7faf8;
 }
 
 .empty {
@@ -424,6 +614,34 @@ button:disabled {
     min-height: 44vh;
     padding: 54px 32px;
   }
+
+  .excel-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .excel-action-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 0;
+    align-items: center;
+    gap: 3px 20px;
+  }
+
+  .action-step,
+  .action-copy {
+    grid-column: 1;
+  }
+
+  .action-copy {
+    margin: 4px 0 0;
+  }
+
+  .file-button {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    width: auto;
+    min-width: 160px;
+  }
 }
 
 @media (max-width: 680px) {
@@ -447,6 +665,30 @@ button:disabled {
 
   .employee-form {
     grid-template-columns: 1fr;
+  }
+
+  .excel-panel-heading,
+  .employee-list-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .excel-action-card {
+    display: flex;
+    min-height: 180px;
+  }
+
+  .action-copy {
+    margin: 20px 0 16px;
+  }
+
+  .file-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .refresh-button {
+    width: 100%;
   }
 
   .topbar,
