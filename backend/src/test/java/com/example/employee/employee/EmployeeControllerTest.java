@@ -1,5 +1,7 @@
 package com.example.employee.employee;
 
+import com.example.employee.auth.AppUser;
+import com.example.employee.auth.AppUserRepository;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -22,8 +24,12 @@ class EmployeeControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private AppUserRepository userRepository;
+
     @Test
     void createsAndListsEmployee() throws Exception {
+        Long userId = employeeUserId("employee_test_user_1");
         String request = """
                 {
                   "name": "山田太郎",
@@ -35,19 +41,21 @@ class EmployeeControllerTest {
                 """;
 
         mockMvc.perform(post("/api/employees")
+                        .header("X-User-Id", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(request))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("山田太郎"));
 
-        mockMvc.perform(get("/api/employees"))
+        mockMvc.perform(get("/api/employees").header("X-User-Id", userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].email").value("yamada@example.com"));
     }
 
     @Test
     void downloadsTemplateExportsAndImportsExcel() throws Exception {
-        byte[] template = mockMvc.perform(get("/api/employees/template"))
+        Long userId = employeeUserId("employee_test_user_2");
+        byte[] template = mockMvc.perform(get("/api/employees/template").header("X-User-Id", userId))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type",
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
@@ -62,13 +70,17 @@ class EmployeeControllerTest {
                 template
         );
 
-        mockMvc.perform(multipart("/api/employees/import").file(upload))
+        mockMvc.perform(multipart("/api/employees/import").file(upload).header("X-User-Id", userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.imported").value(1));
 
-        mockMvc.perform(get("/api/employees/export"))
+        mockMvc.perform(get("/api/employees/export").header("X-User-Id", userId))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type",
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+    }
+
+    private Long employeeUserId(String username) {
+        return userRepository.save(new AppUser(username, "test-password-hash", "ACCOUNTING,EMPLOYEE")).getId();
     }
 }

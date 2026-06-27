@@ -1,5 +1,7 @@
 package com.example.employee.employee;
 
+import com.example.employee.auth.AuthService;
+import com.example.employee.auth.CurrentUser;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,50 +26,60 @@ public class EmployeeController {
 
     private final EmployeeService service;
     private final EmployeeExcelService excelService;
+    private final CurrentUser currentUser;
 
-    public EmployeeController(EmployeeService service, EmployeeExcelService excelService) {
+    public EmployeeController(EmployeeService service, EmployeeExcelService excelService, CurrentUser currentUser) {
         this.service = service;
         this.excelService = excelService;
+        this.currentUser = currentUser;
     }
 
     @GetMapping
-    public List<Employee> findAll() {
+    public List<Employee> findAll(@RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        currentUser.requirePermission(userId, AuthService.EMPLOYEE_PERMISSION);
         return service.findAll();
     }
 
     @GetMapping("/{id}")
-    public Employee findById(@PathVariable Long id) {
+    public Employee findById(@PathVariable Long id, @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        currentUser.requirePermission(userId, AuthService.EMPLOYEE_PERMISSION);
         return service.findById(id);
     }
 
     @GetMapping("/template")
-    public ResponseEntity<byte[]> downloadTemplate() {
+    public ResponseEntity<byte[]> downloadTemplate(@RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        currentUser.requirePermission(userId, AuthService.EMPLOYEE_PERMISSION);
         return excelResponse("employee-upload-template.xlsx", excelService.createTemplate());
     }
 
     @GetMapping("/export")
-    public ResponseEntity<byte[]> exportEmployees() {
+    public ResponseEntity<byte[]> exportEmployees(@RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        currentUser.requirePermission(userId, AuthService.EMPLOYEE_PERMISSION);
         return excelResponse("employees.xlsx", excelService.exportEmployees(service.findAll()));
     }
 
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public EmployeeImportResponse importEmployees(@RequestParam("file") MultipartFile file) {
+    public EmployeeImportResponse importEmployees(@RequestParam("file") MultipartFile file, @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        currentUser.requirePermission(userId, AuthService.EMPLOYEE_PERMISSION);
         return excelService.importEmployees(file);
     }
 
     @PostMapping
-    public ResponseEntity<Employee> create(@Valid @RequestBody EmployeeRequest request) {
+    public ResponseEntity<Employee> create(@Valid @RequestBody EmployeeRequest request, @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        currentUser.requirePermission(userId, AuthService.EMPLOYEE_PERMISSION);
         Employee created = service.create(request);
         return ResponseEntity.created(URI.create("/api/employees/" + created.getId())).body(created);
     }
 
     @PutMapping("/{id}")
-    public Employee update(@PathVariable Long id, @Valid @RequestBody EmployeeRequest request) {
+    public Employee update(@PathVariable Long id, @Valid @RequestBody EmployeeRequest request, @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        currentUser.requirePermission(userId, AuthService.EMPLOYEE_PERMISSION);
         return service.update(id, request);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id, @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        currentUser.requirePermission(userId, AuthService.EMPLOYEE_PERMISSION);
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

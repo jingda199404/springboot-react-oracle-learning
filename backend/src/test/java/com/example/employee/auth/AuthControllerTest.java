@@ -1,5 +1,6 @@
 package com.example.employee.auth;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,12 +32,14 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(request))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.username").value("learning_user"));
+                .andExpect(jsonPath("$.username").value("learning_user"))
+                .andExpect(jsonPath("$.permissions[0]").value("ACCOUNTING"));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(request))
+                .content(request))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.permissions").value(hasItem("ACCOUNTING")))
                 .andExpect(jsonPath("$.message").value("ログインしました"));
     }
 }
