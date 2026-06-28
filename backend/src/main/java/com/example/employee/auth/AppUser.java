@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -29,6 +30,12 @@ public class AppUser {
 
     @Column(name = "PERMISSIONS", length = 200)
     private String legacyPermissions;
+
+    @Column(name = "ACTIVE_SESSION_TOKEN", length = 64)
+    private String activeSessionToken;
+
+    @Column(name = "SESSION_LAST_ACTIVITY_AT")
+    private Instant sessionLastActivityAt;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -59,12 +66,32 @@ public class AppUser {
         return passwordHash;
     }
 
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public String getPermissions() {
         return legacyPermissions;
     }
 
     public void setPermissions(String permissions) {
         this.legacyPermissions = permissions;
+    }
+
+    public String getActiveSessionToken() {
+        return activeSessionToken;
+    }
+
+    public void setActiveSessionToken(String activeSessionToken) {
+        this.activeSessionToken = activeSessionToken;
+    }
+
+    public Instant getSessionLastActivityAt() {
+        return sessionLastActivityAt;
+    }
+
+    public void setSessionLastActivityAt(Instant sessionLastActivityAt) {
+        this.sessionLastActivityAt = sessionLastActivityAt;
     }
 
     public Set<Permission> getPermissionEntities() {

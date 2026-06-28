@@ -8,15 +8,14 @@ import type {
   BatchDefinition,
   BatchRunRequest,
   BatchRunResponse,
-  Employee,
-  EmployeeImportResponse,
-  EmployeeRequest,
+  ManagedUser,
   Permission,
+  UserImportResponse,
   UserPermission,
 } from "./types";
+import { clearStoredSession, readStoredUser } from "./session";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
-const SESSION_KEY = "learning-app-user";
 
 interface ApiError {
   message?: string;
@@ -32,27 +31,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const error = await response.json().catch(() => null) as ApiError | null;
+    if (response.status === 401 && !path.startsWith("/auth/login") && !path.startsWith("/auth/register")) {
+      clearStoredSession();
+      window.location.href = "/login";
+    }
     throw new Error(error?.message ?? `リクエストに失敗しました（${response.status}）`);
   }
 
   return response.status === 204 ? undefined as T : response.json() as Promise<T>;
 }
-
-export const employeeApi = {
-  list: () => request<Employee[]>("/employees"),
-  create: (employee: EmployeeRequest) =>
-    request<Employee>("/employees", { method: "POST", body: JSON.stringify(employee) }),
-  update: (id: number, employee: EmployeeRequest) =>
-    request<Employee>(`/employees/${id}`, { method: "PUT", body: JSON.stringify(employee) }),
-  remove: (id: number) => request<void>(`/employees/${id}`, { method: "DELETE" }),
-  downloadTemplate: () => download("/employees/template", "employee-upload-template.xlsx"),
-  exportExcel: () => download("/employees/export", "employees.xlsx"),
-  importExcel: (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    return request<EmployeeImportResponse>("/employees/import", { method: "POST", body: formData, headers: {} });
-  },
-};
 
 export const accountingApi = {
   list: () => request<AccountingEntry[]>("/accounting-entries"),
@@ -77,6 +64,8 @@ export const authApi = {
     request<AuthResponse>("/auth/register", { method: "POST", body: JSON.stringify(credentials) }),
   login: (credentials: AuthCredentials) =>
     request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(credentials) }),
+  session: () => request<void>("/auth/session"),
+  logout: () => request<void>("/auth/logout", { method: "POST" }),
 };
 
 export const permissionApi = {
@@ -84,6 +73,18 @@ export const permissionApi = {
   listUsers: () => request<UserPermission[]>("/permissions/users"),
   updateUser: (id: number, permissions: string[]) =>
     request<UserPermission>(`/permissions/users/${id}`, { method: "PUT", body: JSON.stringify({ permissions }) }),
+};
+
+export const userApi = {
+  list: () => request<ManagedUser[]>("/users"),
+  updatePassword: (id: number, password: string) =>
+    request<ManagedUser>(`/users/${id}/password`, { method: "PUT", body: JSON.stringify({ password }) }),
+  downloadTemplate: () => download("/users/template", "user-upload-template.xlsx"),
+  importExcel: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<UserImportResponse>("/users/import", { method: "POST", body: formData, headers: {} });
+  },
 };
 
 export const batchApi = {
@@ -96,6 +97,10 @@ async function download(path: string, filename: string): Promise<void> {
   const response = await fetch(`${API_BASE}${path}`, { headers: authHeader() });
   if (!response.ok) {
     const error = await response.json().catch(() => null) as ApiError | null;
+    if (response.status === 401) {
+      clearStoredSession();
+      window.location.href = "/login";
+    }
     throw new Error(error?.message ?? `ダウンロードに失敗しました（${response.status}）`);
   }
 
@@ -111,12 +116,6 @@ async function download(path: string, filename: string): Promise<void> {
 }
 
 function authHeader(): Record<string, string> {
-  const value = localStorage.getItem(SESSION_KEY);
-  if (!value) return {};
-  try {
-    const user = JSON.parse(value) as AuthResponse;
-    return user.id ? { "X-User-Id": String(user.id) } : {};
-  } catch {
-    return {};
-  }
+  const user = readStoredUser();
+  return user?.id && user.sessionToken ? { "X-User-Id": String(user.id), "X-Session-Token": user.sessionToken } : {};
 }

@@ -8,6 +8,7 @@ export interface AuthResponse {
   username: string;
   permissions: string[];
   message: string;
+  sessionToken: string | null;
 }
 
 export interface Permission {
@@ -19,6 +20,14 @@ export interface UserPermission {
   id: number;
   username: string;
   permissions: string[];
+}
+
+export type ManagedUser = UserPermission;
+
+export interface UserImportResponse {
+  imported: number;
+  skipped: number;
+  errors: string[];
 }
 
 export interface BatchParameter {
@@ -47,31 +56,6 @@ export interface BatchRunResponse {
   processedCount: number;
   message: string;
   executedAt: string;
-}
-
-export interface Employee {
-  id: number;
-  name: string;
-  email: string;
-  department: string;
-  salary: number;
-  hireDate: string;
-}
-
-export type EmployeeRequest = Omit<Employee, "id">;
-
-export interface EmployeeForm {
-  name: string;
-  email: string;
-  department: string;
-  salary: string | number;
-  hireDate: string;
-}
-
-export interface EmployeeImportResponse {
-  imported: number;
-  skipped: number;
-  errors: string[];
 }
 
 export type AccountingEntryType = "INCOME" | "EXPENSE";

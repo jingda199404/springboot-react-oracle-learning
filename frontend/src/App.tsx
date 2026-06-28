@@ -2,22 +2,18 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { authApi } from "./api";
 import AccountingPage, { type AccountingView } from "./AccountingPage";
 import BatchPage from "./BatchPage";
-import EmployeePage from "./EmployeePage";
 import PermissionPage from "./PermissionPage";
+import UserManagementPage from "./UserManagementPage";
 import type { AuthResponse } from "./types";
+import { clearStoredSession, isSessionExpired, readStoredUser, touchSession, writeStoredUser } from "./session";
+import { errorMessage } from "./utils";
 
-const SESSION_KEY = "learning-app-user";
 const ACCOUNTING_PERMISSION = "ACCOUNTING";
-const EMPLOYEE_PERMISSION = "EMPLOYEE";
 const PERMISSION_SETTING_PERMISSION = "PERMISSION_SETTING";
 
 function navigate(path: string): void {
   window.history.pushState({}, "", path);
   window.dispatchEvent(new PopStateEvent("popstate"));
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "不明なエラーが発生しました";
 }
 
 interface AuthPageProps {
@@ -100,8 +96,8 @@ interface HomePageProps {
 
 function HomePage({ user, onLogout }: HomePageProps) {
   const canUseAccounting = hasPermission(user, ACCOUNTING_PERMISSION);
-  const canUseEmployee = hasPermission(user, EMPLOYEE_PERMISSION);
   const canUsePermissionSetting = hasPermission(user, PERMISSION_SETTING_PERMISSION);
+  const canUseAdmin = canUsePermissionSetting || canUseAccounting;
 
   return (
     <main className="shell">
@@ -120,11 +116,48 @@ function HomePage({ user, onLogout }: HomePageProps) {
           <p>収入と支出を登録し、カテゴリ・日付・メモ付きで MySQL に保存します。日々の記録から REST API と集計表示を学習できます。</p>
           <button className="primary-button" onClick={() => navigate("/accounting")}>家計簿を開く</button>
         </article>}
-        {canUseEmployee && <article className="module-card">
-          <span className="module-tag">TYPESCRIPT · REST · JPA · MYSQL</span>
-          <h2>社員管理システム</h2>
-          <p>社員データの登録・取得・編集・削除を通して、TypeScript React から Spring Boot REST API、MySQL までの流れを学習します。</p>
-          <button className="primary-button" onClick={() => navigate("/employees")}>社員管理を開く</button>
+        {canUseAdmin && <article className="module-card">
+          <span className="module-tag">ADMIN · PERMISSION · BATCH</span>
+          <h2>管理者ページ</h2>
+          <p>権限設定と Batch 実行など、システム管理用の機能をまとめて確認・操作できます。</p>
+          <button className="primary-button" onClick={() => navigate("/admin")}>管理者ページを開く</button>
+        </article>}
+        <article className="module-card coming-soon"><span className="module-tag">NEXT MODULE</span><h2>次のアイデアを形に</h2><p>認証・認可、ファイルアップロード、メッセージキューなどのモジュールを追加できます。</p></article>
+      </section>
+    </main>
+  );
+}
+
+interface AdminPageProps {
+  user: AuthResponse;
+  onBack: () => void;
+  onLogout: () => void;
+}
+
+function AdminPage({ user, onBack, onLogout }: AdminPageProps) {
+  const canUseAccounting = hasPermission(user, ACCOUNTING_PERMISSION);
+  const canUsePermissionSetting = hasPermission(user, PERMISSION_SETTING_PERMISSION);
+
+  return (
+    <main className="shell">
+      <header className="topbar">
+        <button className="text-button back-button" onClick={onBack}>← ホームへ戻る</button>
+        <div className="user-menu"><span>{user.username}</span><button className="text-button" onClick={onLogout}>ログアウト</button></div>
+      </header>
+      <section className="home-hero">
+        <div>
+          <span className="section-number">ADMIN CENTER</span>
+          <h1>管理者<br />ページ</h1>
+          <p>システム管理に関わる画面をここにまとめています。</p>
+        </div>
+        <div className="home-orb"><span>AD</span><strong>管理メニュー</strong></div>
+      </section>
+      <section className="module-grid">
+        {canUsePermissionSetting && <article className="module-card">
+          <span className="module-tag">USER · PASSWORD · EXCEL</span>
+          <h2>ユーザー管理</h2>
+          <p>ユーザー一覧の確認、パスワード変更、Excel によるユーザー一括登録を行います。</p>
+          <button className="primary-button" onClick={() => navigate("/users")}>ユーザー管理を開く</button>
         </article>}
         {canUsePermissionSetting && <article className="module-card">
           <span className="module-tag">USER · PERMISSION · TABLE</span>
@@ -138,7 +171,6 @@ function HomePage({ user, onLogout }: HomePageProps) {
           <p>登録済みの batch を選択し、実行日などのパラメータを指定して手動実行します。定時処理の学習にも使えます。</p>
           <button className="primary-button" onClick={() => navigate("/batches")}>Batch を実行する</button>
         </article>}
-        <article className="module-card coming-soon"><span className="module-tag">NEXT MODULE</span><h2>次のアイデアを形に</h2><p>認証・認可、ファイルアップロード、メッセージキューなどのモジュールを追加できます。</p></article>
       </section>
     </main>
   );
@@ -171,17 +203,6 @@ function hasPermission(user: AuthResponse, permission: string): boolean {
   return !user.permissions && permission === ACCOUNTING_PERMISSION;
 }
 
-function readStoredUser(): AuthResponse | null {
-  const value = localStorage.getItem(SESSION_KEY);
-  if (!value) return null;
-  try {
-    return JSON.parse(value) as AuthResponse;
-  } catch {
-    localStorage.removeItem(SESSION_KEY);
-    return null;
-  }
-}
-
 function App() {
   const [path, setPath] = useState(window.location.pathname);
   const [user, setUser] = useState<AuthResponse | null>(readStoredUser);
@@ -192,14 +213,41 @@ function App() {
     return () => window.removeEventListener("popstate", updatePath);
   }, []);
 
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const logoutForTimeout = () => {
+      if (!isSessionExpired()) return;
+      clearStoredSession();
+      setUser(null);
+      navigate("/login");
+    };
+    const validateCurrentSession = () => {
+      void authApi.session().catch(() => undefined);
+    };
+    const recordActivity = () => touchSession();
+    const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
+    events.forEach((eventName) => window.addEventListener(eventName, recordActivity, { passive: true }));
+    const timer = window.setInterval(() => {
+      logoutForTimeout();
+      validateCurrentSession();
+    }, 30 * 1000);
+
+    return () => {
+      events.forEach((eventName) => window.removeEventListener(eventName, recordActivity));
+      window.clearInterval(timer);
+    };
+  }, [user]);
+
   function login(nextUser: AuthResponse): void {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
+    writeStoredUser(nextUser);
     setUser(nextUser);
     navigate("/");
   }
 
-  function logout(): void {
-    localStorage.removeItem(SESSION_KEY);
+  async function logout(): Promise<void> {
+    await authApi.logout().catch(() => undefined);
+    clearStoredSession();
     setUser(null);
     navigate("/login");
   }
@@ -211,17 +259,21 @@ function App() {
     const accountingView: AccountingView = path === "/accounting/input" ? "input" : path === "/accounting/records" ? "records" : path === "/accounting/assets" ? "assets" : "home";
     return <AccountingPage user={user} view={accountingView} onBack={() => navigate("/")} onLogout={logout} onNavigate={navigate} />;
   }
-  if (path === "/employees") {
-    if (!hasPermission(user, EMPLOYEE_PERMISSION)) return <AccessDeniedPage user={user} onBack={() => navigate("/")} onLogout={logout} />;
-    return <EmployeePage user={user} onBack={() => navigate("/")} onLogout={logout} />;
+  if (path === "/admin") {
+    if (!hasPermission(user, PERMISSION_SETTING_PERMISSION) && !hasPermission(user, ACCOUNTING_PERMISSION)) return <AccessDeniedPage user={user} onBack={() => navigate("/")} onLogout={logout} />;
+    return <AdminPage user={user} onBack={() => navigate("/")} onLogout={logout} />;
   }
   if (path === "/permissions") {
-    if (!hasPermission(user, PERMISSION_SETTING_PERMISSION)) return <AccessDeniedPage user={user} onBack={() => navigate("/")} onLogout={logout} />;
-    return <PermissionPage user={user} onBack={() => navigate("/")} onLogout={logout} />;
+    if (!hasPermission(user, PERMISSION_SETTING_PERMISSION)) return <AccessDeniedPage user={user} onBack={() => navigate("/admin")} onLogout={logout} />;
+    return <PermissionPage user={user} onBack={() => navigate("/admin")} onLogout={logout} />;
+  }
+  if (path === "/users") {
+    if (!hasPermission(user, PERMISSION_SETTING_PERMISSION)) return <AccessDeniedPage user={user} onBack={() => navigate("/admin")} onLogout={logout} />;
+    return <UserManagementPage user={user} onBack={() => navigate("/admin")} onLogout={logout} />;
   }
   if (path === "/batches") {
-    if (!hasPermission(user, ACCOUNTING_PERMISSION)) return <AccessDeniedPage user={user} onBack={() => navigate("/")} onLogout={logout} />;
-    return <BatchPage user={user} onBack={() => navigate("/")} onLogout={logout} />;
+    if (!hasPermission(user, ACCOUNTING_PERMISSION)) return <AccessDeniedPage user={user} onBack={() => navigate("/admin")} onLogout={logout} />;
+    return <BatchPage user={user} onBack={() => navigate("/admin")} onLogout={logout} />;
   }
   return <HomePage user={user} onLogout={logout} />;
 }

@@ -11,6 +11,8 @@ public interface AccountingBalanceRepository extends JpaRepository<AccountingBal
 
     Optional<AccountingBalance> findByIdAndUserId(Long id, Long userId);
 
+    Optional<AccountingBalance> findFirstByUserIdAndAccountName(Long userId, String accountName);
+
     Optional<AccountingBalance> findFirstByUserIdAndTypeAndAccountName(Long userId, AccountingBalanceType type, String accountName);
 
     List<AccountingBalance> findByTypeAndRepaymentDay(AccountingBalanceType type, Integer repaymentDay);

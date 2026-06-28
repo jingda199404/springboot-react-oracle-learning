@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { accountingApi, accountingBalanceApi } from "./api";
 import type {
   AccountingBalance,
@@ -11,6 +11,7 @@ import type {
   AccountingEntryType,
   AuthResponse,
 } from "./types";
+import { errorMessage, formatCurrency, formatDate, todayIsoDate } from "./utils";
 
 const typeLabels: Record<AccountingEntryType, string> = {
   INCOME: "収入",
@@ -32,7 +33,7 @@ const currentMonth = String(new Date().getMonth() + 1).padStart(2, "0");
 
 function createEmptyForm(): AccountingEntryForm {
   return {
-    entryDate: new Date().toISOString().slice(0, 10),
+    entryDate: todayIsoDate(),
     type: "EXPENSE",
     category: "食費",
     amount: "",
@@ -52,14 +53,6 @@ function createEmptyBalanceForm(): AccountingBalanceForm {
   };
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "不明なエラーが発生しました";
-}
-
-function formatCurrency(value: number): string {
-  return `¥${value.toLocaleString("ja-JP")}`;
-}
-
 function nextRepaymentDate(day: number): Date {
   const today = new Date();
   const year = today.getFullYear();
@@ -71,10 +64,6 @@ function nextRepaymentDate(day: number): Date {
   }
   const nextMonthLastDay = new Date(year, month + 2, 0).getDate();
   return new Date(year, month + 1, Math.min(day, nextMonthLastDay));
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
 export type AccountingView = "home" | "input" | "records" | "assets";
@@ -89,6 +78,7 @@ interface AccountingPageProps {
 }
 
 export default function AccountingPage({ user, view, onBack, onLogout, onNavigate }: AccountingPageProps) {
+  const balanceFormRef = useRef<HTMLElement | null>(null);
   const [entries, setEntries] = useState<AccountingEntry[]>([]);
   const [balances, setBalances] = useState<AccountingBalance[]>([]);
   const [form, setForm] = useState<AccountingEntryForm>(createEmptyForm);
@@ -104,6 +94,7 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
   const [filterYear, setFilterYear] = useState(currentYear);
   const [filterMonth, setFilterMonth] = useState(currentMonth);
   const [filterType, setFilterType] = useState<AccountingTypeFilter>("ALL");
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState("ALL");
 
   async function loadEntries(): Promise<void> {
     setLoading(true);
@@ -162,22 +153,18 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
     return [...years].sort((a, b) => Number(b) - Number(a));
   }, [entries]);
 
+  const availableEntryPaymentMethods = useMemo(() => {
+    const methods = new Set(entries.map((entry) => entry.paymentMethod).filter(Boolean));
+    return [...methods].sort((a, b) => a.localeCompare(b, "ja-JP"));
+  }, [entries]);
+
   const filteredEntries = useMemo(() => entries.filter((entry) => {
     const [year, month] = entry.entryDate.split("-");
     if (filterYear !== "ALL" && year !== filterYear) return false;
     if (filterMonth !== "ALL" && month !== filterMonth) return false;
+    if (filterPaymentMethod !== "ALL" && entry.paymentMethod !== filterPaymentMethod) return false;
     return filterType === "ALL" || entry.type === filterType;
-  }), [entries, filterMonth, filterType, filterYear]);
-
-  const filteredSummary = useMemo(() => {
-    const income = filteredEntries
-      .filter((entry) => entry.type === "INCOME")
-      .reduce((total, entry) => total + Number(entry.amount), 0);
-    const expense = filteredEntries
-      .filter((entry) => entry.type === "EXPENSE")
-      .reduce((total, entry) => total + Number(entry.amount), 0);
-    return { income, expense, balance: income - expense };
-  }, [filteredEntries]);
+  }), [entries, filterMonth, filterPaymentMethod, filterType, filterYear]);
 
   const balanceSummary = useMemo(() => {
     const assets = balances
@@ -189,20 +176,17 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
     return { assets, liabilities, netWorth: assets - liabilities };
   }, [balances]);
 
-  const repaymentSummary = useMemo(() => {
+  const repaymentItems = useMemo(() => {
     const cardBalances = balances.filter((balance) => balance.type === "LIABILITY" && balance.repaymentDay);
-    const repaymentTotal = cardBalances.reduce((total, balance) => total + Number(balance.amount), 0);
-    const nextItems = cardBalances
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return cardBalances
       .map((balance) => ({
         balance,
         date: nextRepaymentDate(Number(balance.repaymentDay)),
+        daysLeft: Math.ceil((nextRepaymentDate(Number(balance.repaymentDay)).getTime() - todayStart.getTime()) / 86400000),
       }))
       .sort((a, b) => a.date.getTime() - b.date.getTime());
-    const nearest = nextItems[0];
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const daysLeft = nearest ? Math.ceil((nearest.date.getTime() - todayStart.getTime()) / 86400000) : null;
-    return { repaymentTotal, nearest, daysLeft };
   }, [balances]);
 
   const assetAccountOptions = useMemo(() => {
@@ -245,7 +229,7 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
           type: nextType,
           accountName: nextType === "ASSET" ? "銀行預金" : "クレジットカード",
           repaymentDay: nextType === "ASSET" ? "" : current.repaymentDay,
-          repaymentAccountName: nextType === "ASSET" ? "" : current.repaymentAccountName,
+          repaymentAccountName: nextType === "ASSET" ? "" : current.repaymentAccountName || assetAccountOptions[0] || "",
         };
       }
       return { ...current, [name]: value };
@@ -274,18 +258,20 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
   }
 
   function startBalanceEdit(balance: AccountingBalance): void {
+    const fallbackRepaymentAccountName =
+      balance.type === "LIABILITY" && balance.repaymentDay ? assetAccountOptions[0] || "" : "";
     setEditingBalanceId(balance.id);
     setBalanceForm({
       type: balance.type,
       accountName: balance.accountName,
       amount: balance.amount,
       repaymentDay: balance.repaymentDay ?? "",
-      repaymentAccountName: balance.repaymentAccountName ?? "",
+      repaymentAccountName: balance.repaymentAccountName ?? fallbackRepaymentAccountName,
       memo: balance.memo ?? "",
     });
     setError("");
     setNotice("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.setTimeout(() => balanceFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   }
 
   function resetBalanceForm(): void {
@@ -297,6 +283,7 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
     setFilterYear("ALL");
     setFilterMonth("ALL");
     setFilterType("ALL");
+    setFilterPaymentMethod("ALL");
   }
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -314,6 +301,7 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
       resetForm();
       setNotice(editingId !== null ? "記帳データを更新しました。" : "記帳データを登録しました。");
       await loadEntries();
+      await loadBalances();
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {
@@ -353,6 +341,7 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
       await accountingApi.remove(entry.id);
       setNotice("記帳データを削除しました。");
       await loadEntries();
+      await loadBalances();
     } catch (requestError) {
       setError(errorMessage(requestError));
     }
@@ -370,6 +359,9 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
       setError(errorMessage(requestError));
     }
   }
+
+  const balanceNeedsRepaymentAccount = balanceForm.type === "LIABILITY" && balanceForm.repaymentDay !== "";
+  const balanceMissingRepaymentAccount = balanceNeedsRepaymentAccount && balanceForm.repaymentAccountName === "";
 
   return (
     <main className="shell accounting-shell">
@@ -482,12 +474,13 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
                   <option value="INCOME">収入</option>
                 </select>
               </label>
+              <label>入出金方法
+                <select value={filterPaymentMethod} onChange={(event) => setFilterPaymentMethod(event.target.value)}>
+                  <option value="ALL">すべて</option>
+                  {availableEntryPaymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}
+                </select>
+              </label>
               <button className="refresh-button filter-reset-button" onClick={resetFilters}>条件をリセット</button>
-            </div>
-            <div className="filtered-summary">
-              <span>抽出結果</span>
-              <strong>{filteredEntries.length} 件</strong>
-              <small>収入 {formatCurrency(filteredSummary.income)} / 支出 {formatCurrency(filteredSummary.expense)} / 差額 {formatCurrency(filteredSummary.balance)}</small>
             </div>
           </div>
           {loading ? <div className="empty">MySQL データを読み込み中...</div> : entries.length === 0 ? <div className="empty">まだ記帳データがありません。記帳入力ページから最初の収入または支出を登録してください。</div> : filteredEntries.length === 0 ? <div className="empty">指定した条件に一致する記帳データはありません。</div> : (
@@ -511,13 +504,21 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
               <h2>クレジットカード返済予定</h2>
               <p>負債として登録したカード請求額、返済日、返済口座から、直近の返済予定と自動返済対象を計算します。</p>
             </div>
-            <div className="repayment-summary">
-              <span>返済予定総額</span>
-              <strong>{formatCurrency(repaymentSummary.repaymentTotal)}</strong>
-              <small>{repaymentSummary.nearest ? `直近：${repaymentSummary.nearest.balance.accountName} / ${repaymentSummary.nearest.balance.repaymentAccountName || "返済口座未設定"} / ${formatDate(repaymentSummary.nearest.date)} / あと ${repaymentSummary.daysLeft} 日` : "返済日付きの負債がありません"}</small>
-            </div>
+            {repaymentItems.length === 0 ? <div className="repayment-empty">返済日付きの負債がありません</div> : (
+              <div className="repayment-list">
+                {repaymentItems.map((item) => (
+                  <article className="repayment-item" key={item.balance.id}>
+                    <div><span>カード</span><strong>{item.balance.accountName}</strong></div>
+                    <div><span>請求額</span><strong className="expense-text">{formatCurrency(Number(item.balance.amount))}</strong></div>
+                    <div><span>返済日</span><strong>{formatDate(item.date)}</strong></div>
+                    <div><span>返済口座</span><strong>{item.balance.repaymentAccountName || "未設定"}</strong></div>
+                    <small>あと {item.daysLeft} 日</small>
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
-          <section className="panel form-panel">
+          <section className="panel form-panel" ref={balanceFormRef}>
             <div className="section-heading">
               <div><span className="section-number">PAGE 3</span><h2>{editingBalanceId !== null ? "資産・負債を編集" : "資産・負債を登録"}</h2></div>
               <div className="inline-actions">
@@ -541,9 +542,10 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
                 </label>
               )}
               <label className="memo-field">メモ<input name="memo" value={balanceForm.memo} onChange={updateBalanceField} maxLength={255} placeholder="例：普通預金、NISA評価額、未確定請求など" /></label>
-              <button className="primary-button" disabled={balanceSaving}>{balanceSaving ? "保存中..." : editingBalanceId !== null ? "変更を保存" : "登録する"}</button>
+              <button className="primary-button" disabled={balanceSaving || balanceMissingRepaymentAccount}>{balanceSaving ? "保存中..." : editingBalanceId !== null ? "変更を保存" : "登録する"}</button>
             </form>
             {balanceForm.type === "LIABILITY" && assetAccountOptions.length === 0 && <p className="form-hint">返済口座を選ぶには、先に区分「資産」で銀行口座などを登録してください。</p>}
+            {balanceMissingRepaymentAccount && assetAccountOptions.length > 0 && <p className="form-hint">返済日を設定する場合は、返済口座を選択してください。</p>}
           </section>
           <section className="panel">
             <div className="section-heading employee-list-heading">

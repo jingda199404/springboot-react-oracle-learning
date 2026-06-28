@@ -244,9 +244,6 @@ h2 {
 }
 
 .accounting-filter-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
   gap: 18px;
   margin-bottom: 22px;
   padding: 18px;
@@ -257,7 +254,7 @@ h2 {
 
 .filter-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 1fr)) auto;
+  grid-template-columns: repeat(4, minmax(120px, 1fr)) auto;
   align-items: end;
   gap: 12px;
 }
@@ -307,25 +304,44 @@ h2 {
   color: #66706c;
 }
 
-.repayment-summary {
-  min-width: 310px;
-  padding: 18px 20px;
+.repayment-list {
+  display: grid;
+  gap: 12px;
+  min-width: min(680px, 100%);
+}
+
+.repayment-item,
+.repayment-empty {
+  padding: 16px 18px;
   border-radius: 16px;
   color: #f7f9f5;
   background: #202825;
 }
 
-.repayment-summary span,
-.repayment-summary small {
+.repayment-item {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.repayment-item span,
+.repayment-item small {
   display: block;
   color: #aeb8b3;
   font-size: 12px;
 }
 
-.repayment-summary strong {
+.repayment-item strong {
   display: block;
-  margin: 6px 0;
-  font-size: 28px;
+  margin-top: 5px;
+  font-size: 15px;
+}
+
+.repayment-empty {
+  min-width: 260px;
+  color: #cfd7d2;
+  font-weight: 700;
 }
 
 label {
@@ -433,6 +449,20 @@ td span {
   color: #aa3f37;
 }
 
+.password-inline-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 10px;
+}
+
+.password-inline-form input {
+  width: 100%;
+}
+
+.multiline-alert {
+  white-space: pre-line;
+}
+
 .employee-list-heading {
   align-items: center;
 }
@@ -484,6 +514,10 @@ td span {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+}
+
+.excel-actions.two-actions {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .excel-action-card {
@@ -638,6 +672,18 @@ td span {
   gap: 14px;
 }
 
+.permission-search {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #dfe5e1;
+  border-radius: 18px;
+  background: #f7faf8;
+}
+
 .permission-card {
   display: grid;
   grid-template-columns: minmax(170px, 0.7fr) minmax(0, 1.4fr) auto;
@@ -653,6 +699,15 @@ td span {
   display: grid;
   grid-template-columns: repeat(3, minmax(150px, 1fr));
   gap: 10px;
+}
+
+.permission-options.compact {
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+}
+
+.permission-table td:first-child strong {
+  display: block;
+  margin-top: 4px;
 }
 
 .permission-option {
@@ -890,8 +945,13 @@ button:disabled {
   }
 
   .filtered-summary,
-  .repayment-summary {
+  .repayment-list,
+  .repayment-empty {
     min-width: 0;
+  }
+
+  .repayment-item {
+    grid-template-columns: 1fr;
   }
 
   .auth-shell {
@@ -994,7 +1054,8 @@ button:disabled {
   }
 
   .permission-card,
-  .permission-options {
+  .permission-options,
+  .permission-search {
     grid-template-columns: 1fr;
   }
 

@@ -1,4 +1,4 @@
-package com.example.employee.accounting;
+package com.example.jingda.batch.accounting;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -9,27 +9,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class CreditCardRepaymentBatch {
+public class CreditCardRepaymentJob {
 
-    private static final Logger log = LoggerFactory.getLogger(CreditCardRepaymentBatch.class);
+    private static final Logger log = LoggerFactory.getLogger(CreditCardRepaymentJob.class);
 
     private final AccountingBalanceRepository repository;
 
-    public CreditCardRepaymentBatch(AccountingBalanceRepository repository) {
+    public CreditCardRepaymentJob(AccountingBalanceRepository repository) {
         this.repository = repository;
     }
 
     @Transactional
     public int repayDueCards(LocalDate date) {
-        return repayDueCards(repository.findByTypeAndRepaymentDay(AccountingBalanceType.LIABILITY, date.getDayOfMonth()), date);
-    }
-
-    @Transactional
-    public int repayDueCards(LocalDate date, Long userId) {
-        return repayDueCards(repository.findByUserIdAndTypeAndRepaymentDay(userId, AccountingBalanceType.LIABILITY, date.getDayOfMonth()), date);
-    }
-
-    private int repayDueCards(List<AccountingBalance> dueLiabilities, LocalDate date) {
+        List<AccountingBalance> dueLiabilities = repository.findByTypeAndRepaymentDay(
+                AccountingBalanceType.LIABILITY,
+                date.getDayOfMonth()
+        );
         int processed = 0;
         for (AccountingBalance liability : dueLiabilities) {
             if (shouldSkip(liability, date)) {

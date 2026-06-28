@@ -1,8 +1,11 @@
 package com.example.employee.accounting;
 
+import com.example.employee.common.TextUtils;
 import com.example.employee.error.ResourceNotFoundException;
 import java.time.LocalDate;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class AccountingBalanceService {
+
+    private static final Logger log = LoggerFactory.getLogger(AccountingBalanceService.class);
 
     private final AccountingBalanceRepository repository;
 
@@ -28,7 +33,7 @@ public class AccountingBalanceService {
 
     @Transactional
     public AccountingBalance create(AccountingBalanceRequest request, Long userId) {
-        return repository.save(new AccountingBalance(
+        AccountingBalance created = repository.save(new AccountingBalance(
                 LocalDate.now(),
                 request.type(),
                 request.accountName(),
@@ -37,9 +42,12 @@ public class AccountingBalanceService {
                 repaymentDay(request),
                 repaymentAccountName(request, userId),
                 null,
-                cleanMemo(request.memo()),
+                TextUtils.trimToEmpty(request.memo()),
                 userId
         ));
+        log.info("Accounting balance created. userId={}, balanceId={}, type={}, accountName={}, amount={}",
+                userId, created.getId(), created.getType(), created.getAccountName(), created.getAmount());
+        return created;
     }
 
     @Transactional
@@ -52,20 +60,16 @@ public class AccountingBalanceService {
         balance.setAmount(request.amount());
         balance.setRepaymentDay(repaymentDay(request));
         balance.setRepaymentAccountName(repaymentAccountName(request, userId));
-        balance.setMemo(cleanMemo(request.memo()));
+        balance.setMemo(TextUtils.trimToEmpty(request.memo()));
+        log.info("Accounting balance updated. userId={}, balanceId={}, type={}, accountName={}, amount={}",
+                userId, balance.getId(), balance.getType(), balance.getAccountName(), balance.getAmount());
         return balance;
     }
 
     @Transactional
     public void delete(Long id, Long userId) {
         repository.delete(findById(id, userId));
-    }
-
-    private String cleanMemo(String memo) {
-        if (memo == null || memo.isBlank()) {
-            return "";
-        }
-        return memo.trim();
+        log.info("Accounting balance deleted. userId={}, balanceId={}", userId, id);
     }
 
     private String defaultCategory(AccountingBalanceType type) {
@@ -83,7 +87,7 @@ public class AccountingBalanceService {
         if (request.type() != AccountingBalanceType.LIABILITY) {
             return "";
         }
-        String repaymentAccountName = cleanMemo(request.repaymentAccountName());
+        String repaymentAccountName = TextUtils.trimToEmpty(request.repaymentAccountName());
         if (request.repaymentDay() != null && repaymentAccountName.isBlank()) {
             throw new IllegalArgumentException("返済日を設定する場合は返済口座を選択してください");
         }

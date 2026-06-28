@@ -6,6 +6,8 @@ import com.example.employee.auth.CurrentUser;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/batches")
 public class BatchController {
+
+    private static final Logger log = LoggerFactory.getLogger(BatchController.class);
 
     private static final String CREDIT_CARD_REPAYMENT = "credit-card-repayment";
     private static final String CREDIT_CARD_REPAYMENT_LABEL = "クレジットカード返済";
@@ -44,6 +48,8 @@ public class BatchController {
         }
 
         int processedCount = repaymentBatch.repayDueCards(targetDate, currentUserId);
+        log.info("Batch executed manually. userId={}, code={}, targetDate={}, processedCount={}",
+                currentUserId, code, targetDate, processedCount);
         return new BatchRunResponse(
                 CREDIT_CARD_REPAYMENT,
                 CREDIT_CARD_REPAYMENT_LABEL,

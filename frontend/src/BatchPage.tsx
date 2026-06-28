@@ -1,14 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { batchApi } from "./api";
 import type { AuthResponse, BatchDefinition, BatchRunResponse } from "./types";
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "不明なエラーが発生しました";
-}
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+import { errorMessage, todayIsoDate } from "./utils";
 
 interface BatchPageProps {
   user: AuthResponse;
@@ -19,7 +12,7 @@ interface BatchPageProps {
 export default function BatchPage({ user, onBack, onLogout }: BatchPageProps) {
   const [batches, setBatches] = useState<BatchDefinition[]>([]);
   const [selectedCode, setSelectedCode] = useState("");
-  const [targetDate, setTargetDate] = useState(today);
+  const [targetDate, setTargetDate] = useState(todayIsoDate);
   const [result, setResult] = useState<BatchRunResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -34,7 +27,7 @@ export default function BatchPage({ user, onBack, onLogout }: BatchPageProps) {
       if (nextBatches.length > 0) {
         setSelectedCode((current) => current || nextBatches[0].code);
         const targetDateParameter = nextBatches[0].parameters.find((parameter) => parameter.name === "targetDate");
-        setTargetDate(targetDateParameter?.defaultValue || today());
+        setTargetDate(targetDateParameter?.defaultValue || todayIsoDate());
       }
     } catch (requestError) {
       setError(errorMessage(requestError));
@@ -56,7 +49,7 @@ export default function BatchPage({ user, onBack, onLogout }: BatchPageProps) {
     setResult(null);
     const nextBatch = batches.find((batch) => batch.code === nextCode);
     const targetDateParameter = nextBatch?.parameters.find((parameter) => parameter.name === "targetDate");
-    setTargetDate(targetDateParameter?.defaultValue || today());
+    setTargetDate(targetDateParameter?.defaultValue || todayIsoDate());
   }
 
   async function run(event: FormEvent<HTMLFormElement>): Promise<void> {
