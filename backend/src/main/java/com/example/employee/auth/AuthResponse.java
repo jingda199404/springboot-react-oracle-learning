@@ -1,4 +1,6 @@
 package com.example.employee.auth;
 
-public record AuthResponse(Long id, String username, String message) {
+import java.util.List;
+
+public record AuthResponse(Long id, String username, List<String> permissions, String message, String sessionToken) {
 }
