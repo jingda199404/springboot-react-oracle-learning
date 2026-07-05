@@ -4,6 +4,7 @@
 *.iml
 
 backend/target/
+batch/target/
 frontend/node_modules/
 frontend/dist/
 

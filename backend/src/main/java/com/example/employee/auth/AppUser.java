@@ -1,45 +1,87 @@
 package com.example.employee.auth;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.SequenceGenerator;
-import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
-@Entity
-@Table(name = "APP_USERS")
 public class AppUser {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "app_user_sequence")
-    @SequenceGenerator(name = "app_user_sequence", sequenceName = "APP_USER_SEQ", allocationSize = 1)
     private Long id;
 
-    @Column(name = "USERNAME", nullable = false, unique = true, length = 50)
     private String username;
 
-    @Column(name = "PASSWORD_HASH", nullable = false, length = 100)
     private String passwordHash;
 
-    protected AppUser() {
+    private String legacyPermissions;
+
+    private String activeSessionToken;
+
+    private Instant sessionLastActivityAt;
+
+    private Set<Permission> permissions = new LinkedHashSet<>();
+
+    public AppUser() {
     }
 
-    public AppUser(String username, String passwordHash) {
+    public AppUser(String username, String passwordHash, String legacyPermissions) {
         this.username = username;
         this.passwordHash = passwordHash;
+        this.legacyPermissions = legacyPermissions;
     }
 
     public Long getId() {
         return id;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public String getUsername() {
         return username;
     }
 
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     public String getPasswordHash() {
         return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public String getPermissions() {
+        return legacyPermissions;
+    }
+
+    public void setPermissions(String permissions) {
+        this.legacyPermissions = permissions;
+    }
+
+    public String getActiveSessionToken() {
+        return activeSessionToken;
+    }
+
+    public void setActiveSessionToken(String activeSessionToken) {
+        this.activeSessionToken = activeSessionToken;
+    }
+
+    public Instant getSessionLastActivityAt() {
+        return sessionLastActivityAt;
+    }
+
+    public void setSessionLastActivityAt(Instant sessionLastActivityAt) {
+        this.sessionLastActivityAt = sessionLastActivityAt;
+    }
+
+    public Set<Permission> getPermissionEntities() {
+        return permissions;
+    }
+
+    public void setPermissionEntities(Set<Permission> permissions) {
+        this.permissions = permissions;
     }
 }

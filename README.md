@@ -1,127 +1,122 @@
-# TypeScript React + Spring Boot REST + Oracle 学習プロジェクト
+# Jingda Private Hub
 
-登録・ログインと社員情報の登録、取得、編集、削除を実装した Java フルスタック学習プロジェクトです。
+Jingda 個人利用向けの Spring Boot + React アプリです。家計簿、初期資産・負債、クレジットカード返済 batch、日本語学習、株式取引記録、ユーザー管理、権限管理をまとめて扱います。
 
 ## 技術スタック
 
-- バックエンド：Java 21、Spring Boot 3.4、Spring Web REST API、Spring Data JPA、Bean Validation
+- バックエンド：Java 21、Spring Boot 3.4、Spring Web REST API、Spring JDBC
 - フロントエンド：TypeScript、React 19、Vite 6
-- データベース：Oracle Database Free 23ai
-- テスト：Spring Boot Test、MockMvc、H2 Oracle 互換モード
+- データベース：MySQL 8.4 LTS
+- batch：Spring Boot CLI アプリケーション、cron 実行想定、Spring JDBC
+- テスト：Spring Boot Test、MockMvc、H2
 
-## プロジェクト構成
+## 構成
 
 ```text
 .
-├── backend/                 # Spring Boot REST API
-├── frontend/                # TypeScript React フロントエンド
-├── compose.yml              # ローカル Oracle Free
-└── .env.example             # データベース環境変数の例
+├── backend/      # REST API と React 静的ファイル配信
+├── frontend/     # TypeScript React 画面
+├── batch/        # cron から起動する独立 batch
+├── compose.yml   # ローカル MySQL
+└── env.sh        # プロジェクト内ツールチェーン読み込み
 ```
 
-## 必要な環境
+## ローカル起動
 
-- JDK 21+
-- Maven 3.9+
-- Node.js 20+
-- Docker（ローカル Oracle の起動に使用）
-
-システムに Java、Maven、Node.js がない場合は、プロジェクト内の開発ツールを読み込めます。
+Java、Maven、Node.js をプロジェクト内ツールチェーンから使う場合：
 
 ```bash
 source ./env.sh
 ```
 
-この環境では Colima を Docker エンジンとして使用します。
+MySQL を Docker Compose で起動：
 
 ```bash
-source ./env.sh
-colima start --vm-type vz
-```
-
-## プロジェクトの起動
-
-### 1. Oracle を起動
-
-```bash
-cp .env.example .env
 docker compose up -d
 ```
 
-初回起動には数分かかる場合があります。デフォルト接続情報：
+デフォルト接続情報：
 
 ```text
-URL:        jdbc:oracle:thin:@localhost:1521/FREEPDB1
-ユーザー名: app_user
-パスワード: app_password
+Host:     localhost
+Port:     3306
+Database: jingda
+User:     app_user
+Password: app_password
 ```
 
-### 2. バックエンドを起動
+バックエンドを起動：
 
 ```bash
+source ./env.sh
 cd backend
-export DB_URL=jdbc:oracle:thin:@localhost:1521/FREEPDB1
-export DB_USERNAME=app_user
-export DB_PASSWORD=app_password
 mvn spring-boot:run
 ```
 
-バックエンドは `http://localhost:8080` で起動します。初回起動時に Hibernate が必要なテーブルとシーケンスを作成します。
-
-### 3. フロントエンドを起動
+フロントエンド開発サーバーを起動：
 
 ```bash
+source ./env.sh
 cd frontend
 npm install
 npm run dev
 ```
 
-ブラウザで `http://localhost:5173` を開きます。開発サーバーは `/api` リクエストをバックエンドへプロキシします。
+開発時は `http://localhost:5173`、JAR 実行時は `http://localhost:8080` を開きます。
 
-## REST API
-
-| メソッド | パス | 説明 |
-| --- | --- | --- |
-| POST | `/api/auth/register` | アカウント登録 |
-| POST | `/api/auth/login` | ログイン |
-| GET | `/api/employees` | 社員一覧の取得 |
-| GET | `/api/employees/{id}` | 社員情報の取得 |
-| POST | `/api/employees` | 社員の登録 |
-| PUT | `/api/employees/{id}` | 社員情報の更新 |
-| DELETE | `/api/employees/{id}` | 社員の削除 |
-
-リクエストボディの例：
-
-```json
-{
-  "name": "山田太郎",
-  "email": "yamada@example.com",
-  "department": "開発部",
-  "salary": 300000,
-  "hireDate": "2026-06-10"
-}
-```
-
-## テストとビルド
-
-```bash
-cd backend
-mvn test
-mvn clean package
-
-cd ../frontend
-npm run typecheck
-npm run build
-```
-
-`backend` で `mvn clean package` を実行すると、TypeScript の型チェック、React のビルド、Spring Boot JAR への静的ファイル組み込みが自動で行われます。
+## ビルド
 
 ```bash
 source ./env.sh
-docker compose up -d
-java -jar backend/target/employee-api-0.0.1-SNAPSHOT.jar
+cd backend
+mvn clean package
+java -jar target/jingda-api-0.0.1-SNAPSHOT.jar
 ```
 
-ブラウザで `http://localhost:8080` を開きます。
+`backend` の package 時に `frontend` の TypeScript チェックと Vite build が実行され、生成された静的ファイルが Spring Boot JAR に組み込まれます。そのため本番実行時にフロントエンドを別プロセスで起動する必要はありません。
 
-バックエンドテストではインメモリデータベースを使用するため、ローカル Oracle は不要です。本番環境では `DDL_AUTO=validate` と Flyway または Liquibase の使用を推奨します。
+## batch
+
+クレジットカード返済 batch は `batch` 工程から起動します。
+
+```bash
+source ./env.sh
+cd batch
+mvn clean package
+java -jar target/jingda-batch-0.0.1-SNAPSHOT.jar
+```
+
+実行する batch と対象日は環境変数で指定できます。
+
+```bash
+BATCH_CODE=credit-card-repayment TARGET_DATE=2026-07-05 \
+java -jar target/jingda-batch-0.0.1-SNAPSHOT.jar
+```
+
+サーバーでは cron からこの JAR を起動します。接続先 DB は `DB_URL`、`DB_USERNAME`、`DB_PASSWORD` で上書きしてください。
+
+## テスト
+
+```bash
+source ./env.sh
+mvn -f backend/pom.xml test
+mvn -f batch/pom.xml test
+cd frontend && npm run typecheck && npm run build
+```
+
+## 設定
+
+主な環境変数：
+
+```text
+SERVER_PORT
+DB_URL
+DB_USERNAME
+DB_PASSWORD
+CORS_ALLOWED_ORIGIN
+BATCH_CODE
+TARGET_DATE
+BATCH_ZONE
+```
+
+ローカルのデフォルト DB は `localhost:3306/jingda` です。サーバーに配置する場合は systemd や cron の環境変数で接続先を明示してください。
