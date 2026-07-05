@@ -3,6 +3,7 @@ package com.example.employee.auth;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -157,5 +158,22 @@ class AuthControllerTest {
                         .content("{\"password\":\"newpass123\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("excel_user"));
+
+        mockMvc.perform(delete("/api/users/" + excelUserId)
+                        .header("X-User-Id", adminId)
+                        .header("X-Session-Token", adminToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/users")
+                        .header("X-User-Id", adminId)
+                        .header("X-Session-Token", adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.username=='excel_user')]").isEmpty());
+
+        mockMvc.perform(delete("/api/users/" + adminId)
+                        .header("X-User-Id", adminId)
+                        .header("X-Session-Token", adminToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("ログイン中のユーザーは削除できません"));
     }
 }

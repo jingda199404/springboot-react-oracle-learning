@@ -1,27 +1,14 @@
 package com.example.employee.auth;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
-@Entity
-@Table(name = "PERMISSIONS")
 public class Permission {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "CODE", nullable = false, unique = true, length = 50)
     private String code;
 
-    @Column(name = "LABEL", nullable = false, length = 100)
     private String label;
 
-    protected Permission() {
+    public Permission() {
     }
 
     public Permission(String code, String label) {
@@ -33,11 +20,23 @@ public class Permission {
         return id;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public String getCode() {
         return code;
     }
 
+    public void setCode(String code) {
+        this.code = code;
+    }
+
     public String getLabel() {
         return label;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
     }
 }

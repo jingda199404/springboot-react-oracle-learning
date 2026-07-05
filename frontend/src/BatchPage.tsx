@@ -77,7 +77,7 @@ export default function BatchPage({ user, onBack, onLogout }: BatchPageProps) {
         <div>
           <span className="eyebrow">MANUAL BATCH RUNNER</span>
           <h1>Batch 実行</h1>
-          <p>実行したい batch を選び、必要なパラメータを指定して REST API から手動実行します。</p>
+          <p>実行したい batch を選び、必要なパラメータを指定して手動実行します。</p>
         </div>
         <div className="summary">
           <span>登録済み Batch</span>
@@ -121,7 +121,7 @@ export default function BatchPage({ user, onBack, onLogout }: BatchPageProps) {
             <article><span>Batch</span><strong>{result.label}</strong><small>{result.code}</small></article>
             <article><span>実行日</span><strong>{result.targetDate}</strong><small>指定パラメータ</small></article>
             <article><span>処理件数</span><strong>{result.processedCount}</strong><small>返済処理済み</small></article>
-            <article><span>実行時刻</span><strong>{new Date(result.executedAt).toLocaleString("ja-JP")}</strong><small>API 実行結果</small></article>
+            <article><span>実行時刻</span><strong>{new Date(result.executedAt).toLocaleString("ja-JP")}</strong><small>実行結果</small></article>
           </div>
         </section>
       )}

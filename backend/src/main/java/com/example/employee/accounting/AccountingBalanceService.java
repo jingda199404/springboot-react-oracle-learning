@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +22,7 @@ public class AccountingBalanceService {
     }
 
     public List<AccountingBalance> findAll(Long userId) {
-        return repository.findByUserId(userId, Sort.by(Sort.Direction.ASC, "type").and(Sort.by(Sort.Direction.ASC, "id")));
+        return repository.findByUserId(userId);
     }
 
     public AccountingBalance findById(Long id, Long userId) {
@@ -61,6 +60,7 @@ public class AccountingBalanceService {
         balance.setRepaymentDay(repaymentDay(request));
         balance.setRepaymentAccountName(repaymentAccountName(request, userId));
         balance.setMemo(TextUtils.trimToEmpty(request.memo()));
+        balance = repository.save(balance);
         log.info("Accounting balance updated. userId={}, balanceId={}, type={}, accountName={}, amount={}",
                 userId, balance.getId(), balance.getType(), balance.getAccountName(), balance.getAmount());
         return balance;

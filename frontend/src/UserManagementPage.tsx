@@ -14,6 +14,7 @@ export default function UserManagementPage({ user, onBack, onLogout }: UserManag
   const [passwords, setPasswords] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [fileBusy, setFileBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -55,6 +56,27 @@ export default function UserManagementPage({ user, onBack, onLogout }: UserManag
       setError(errorMessage(requestError));
     } finally {
       setSavingId(null);
+    }
+  }
+
+  async function removeUser(target: ManagedUser): Promise<void> {
+    if (target.id === user.id) {
+      setError("ログイン中のユーザーは削除できません。");
+      return;
+    }
+    if (!window.confirm(`${target.username} を削除しますか？このユーザーの家計簿データも削除されます。`)) return;
+
+    setDeletingId(target.id);
+    setError("");
+    setNotice("");
+    try {
+      await userApi.remove(target.id);
+      setNotice(`${target.username} を削除しました。`);
+      await load();
+    } catch (requestError) {
+      setError(errorMessage(requestError));
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -102,14 +124,14 @@ export default function UserManagementPage({ user, onBack, onLogout }: UserManag
       </header>
       <header className="hero">
         <div>
-          <span className="eyebrow">USER ADMIN</span>
+          <span className="eyebrow">PRIVATE USER ADMIN</span>
           <h1>ユーザー管理</h1>
-          <p>ユーザー情報の確認、パスワード変更、Excel 一括登録を行います。</p>
+          <p>Jingda Hub を利用するユーザーの確認、パスワード変更、Excel 一括登録、削除を行います。</p>
         </div>
         <div className="summary">
           <span>ユーザー数</span>
           <strong>{users.length}</strong>
-          <small>APP_USERS</small>
+          <small>Private users</small>
         </div>
       </header>
       {notice && <div className="success">{notice}</div>}
@@ -142,14 +164,14 @@ export default function UserManagementPage({ user, onBack, onLogout }: UserManag
       </section>
       <section className="panel">
         <div className="section-heading employee-list-heading">
-          <div><span className="section-number">USER LIST</span><h2>ユーザー一覧</h2><span className="record-count">{users.length} 件</span></div>
+          <div><span className="section-number">PRIVATE USERS</span><h2>ユーザー一覧</h2><span className="record-count">{users.length} 件</span></div>
           <button className="refresh-button" onClick={() => void load()} disabled={loading}>
             <span aria-hidden="true">↻</span> {loading ? "読込中..." : "最新情報に更新"}
           </button>
         </div>
         {loading ? <div className="empty">ユーザーデータを読み込み中...</div> : (
           users.length === 0 ? <div className="empty">ユーザーが登録されていません。</div> : (
-            <div className="table-wrap"><table><thead><tr><th>ユーザー</th><th>権限</th><th>パスワード変更</th></tr></thead>
+            <div className="table-wrap"><table><thead><tr><th>ユーザー</th><th>権限</th><th>パスワード変更</th><th>操作</th></tr></thead>
               <tbody>{users.map((target) => (
                 <tr key={target.id}>
                   <td><span className="section-number">USER #{target.id}</span><strong>{target.username}</strong></td>
@@ -168,6 +190,16 @@ export default function UserManagementPage({ user, onBack, onLogout }: UserManag
                         {savingId === target.id ? "更新中..." : "変更"}
                       </button>
                     </form>
+                  </td>
+                  <td className="actions">
+                    <button
+                      className="danger"
+                      onClick={() => void removeUser(target)}
+                      disabled={target.id === user.id || deletingId === target.id}
+                      title={target.id === user.id ? "ログイン中のユーザーは削除できません" : undefined}
+                    >
+                      {deletingId === target.id ? "削除中..." : target.id === user.id ? "ログイン中" : "削除"}
+                    </button>
                   </td>
                 </tr>
               ))}</tbody>

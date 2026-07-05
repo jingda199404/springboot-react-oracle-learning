@@ -7,7 +7,6 @@ import java.time.LocalDate;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +25,7 @@ public class AccountingEntryService {
     }
 
     public List<AccountingEntry> findAll(Long userId) {
-        return repository.findByUserId(userId, Sort.by(Sort.Direction.DESC, "entryDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return repository.findByUserId(userId);
     }
 
     public AccountingEntry findById(Long id, Long userId) {
@@ -61,6 +60,7 @@ public class AccountingEntryService {
         entry.setAmount(request.amount());
         entry.setPaymentMethod(request.paymentMethod());
         entry.setMemo(TextUtils.trimToEmpty(request.memo()));
+        entry = repository.save(entry);
         applyBalanceImpact(entry.getType(), entry.getAmount(), entry.getPaymentMethod(), userId, false);
         log.info("Accounting entry updated. userId={}, entryId={}, type={}, amount={}, paymentMethod={}",
                 userId, entry.getId(), entry.getType(), entry.getAmount(), entry.getPaymentMethod());
@@ -85,6 +85,7 @@ public class AccountingEntryService {
         }
         balance.setAmount(balance.getAmount().add(delta));
         balance.setAsOfDate(LocalDate.now());
+        balanceRepository.save(balance);
         log.debug("Accounting balance adjusted. userId={}, balanceId={}, accountName={}, delta={}, reverse={}",
                 userId, balance.getId(), balance.getAccountName(), delta, reverse);
     }

@@ -49,6 +49,8 @@ public class CreditCardRepaymentBatch {
             liability.setAmount(BigDecimal.ZERO);
             liability.setAsOfDate(date);
             liability.setLastRepaymentDate(date);
+            repository.save(repaymentAccount);
+            repository.save(liability);
             processed++;
             log.info("Credit card repaid. userId={}, liabilityId={}, repaymentAccountId={}, amount={}, date={}",
                     liability.getUserId(), liability.getId(), repaymentAccount.getId(), repaymentAmount, date);

@@ -6,6 +6,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -47,6 +48,18 @@ public class UserManagementController {
                 targetUserId,
                 request.password()
         );
+    }
+
+    @DeleteMapping("/{targetUserId}")
+    public ResponseEntity<Void> deleteUser(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @PathVariable Long targetUserId
+    ) {
+        authService.deleteManagedUser(
+                currentUser.requirePermission(userId, AuthService.PERMISSION_SETTING_PERMISSION),
+                targetUserId
+        );
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/template")

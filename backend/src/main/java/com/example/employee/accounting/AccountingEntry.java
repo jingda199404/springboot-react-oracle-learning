@@ -1,48 +1,28 @@
 package com.example.employee.accounting;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-@Entity
-@Table(name = "ACCOUNTING_ENTRIES")
 public class AccountingEntry {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "ENTRY_DATE", nullable = false)
     private LocalDate entryDate;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "TYPE", nullable = false, length = 20)
     private AccountingEntryType type;
 
-    @Column(name = "CATEGORY", nullable = false, length = 80)
     private String category;
 
-    @Column(name = "AMOUNT", nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 
-    @Column(name = "PAYMENT_METHOD", length = 100)
     private String paymentMethod;
 
-    @Column(name = "MEMO", length = 255)
     private String memo;
 
-    @Column(name = "USER_ID")
     private Long userId;
 
-    protected AccountingEntry() {
+    public AccountingEntry() {
     }
 
     public AccountingEntry(LocalDate entryDate, AccountingEntryType type, String category, BigDecimal amount, String paymentMethod, String memo, Long userId) {
@@ -57,6 +37,10 @@ public class AccountingEntry {
 
     public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public LocalDate getEntryDate() {
@@ -110,5 +94,9 @@ public class AccountingEntry {
     @JsonIgnore
     public Long getUserId() {
         return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 }

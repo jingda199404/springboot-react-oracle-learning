@@ -147,6 +147,13 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
     return { income, expense, balance: income - expense };
   }, [entries]);
 
+  const currentMonthEntries = useMemo(() => entries
+    .filter((entry) => {
+      const [year, month] = entry.entryDate.split("-");
+      return year === currentYear && month === currentMonth;
+    })
+    .sort((a, b) => b.entryDate.localeCompare(a.entryDate) || b.id - a.id), [entries]);
+
   const availableYears = useMemo(() => {
     const years = new Set(entries.map((entry) => entry.entryDate.slice(0, 4)));
     years.add(currentYear);
@@ -371,9 +378,9 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
       </header>
       <header className="hero accounting-hero">
         <div>
-          <span className="eyebrow">MYSQL ACCOUNTING REST API</span>
+          <span className="eyebrow">JINGDA FINANCE</span>
           <h1>{view === "home" ? "家計簿" : view === "input" ? "記帳入力" : view === "records" ? "記帳記録" : "初期資産・負債"}</h1>
-          <p>{view === "home" ? "記帳入力、記録確認、初期資産・負債を分けて、お金の全体像を管理します。" : view === "input" ? "収入と支出を入力して MySQL に保存します。" : view === "records" ? "保存済みの記帳データを一覧で確認できます。" : "銀行預金、証券口座、クレジットカード未払金など、開始時点の資産と負債を登録します。"}</p>
+          <p>{view === "home" ? "記帳入力、記録確認、初期資産・負債を分けて、お金の全体像を管理します。" : view === "input" ? "収入と支出を入力して、当月の明細をすぐ確認できます。" : view === "records" ? "保存済みの記帳データを一覧で確認できます。" : "銀行預金、証券口座、クレジットカード未払金など、開始時点の資産と負債を登録します。"}</p>
         </div>
         <div className="summary accounting-summary">
           <span>現在の残高</span>
@@ -394,19 +401,19 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
       {view === "home" && (
         <section className="accounting-menu-grid">
           <article className="module-card accounting-menu-card">
-            <span className="module-tag">PAGE 1</span>
+            <span className="module-tag">INPUT</span>
             <h2>記帳入力</h2>
             <p>日付、収入・支出、カテゴリ、金額、メモを入力します。毎日の記録をここから追加します。</p>
             <button className="primary-button" onClick={() => onNavigate("/accounting/input")}>記帳入力へ</button>
           </article>
           <article className="module-card accounting-menu-card">
-            <span className="module-tag">PAGE 2</span>
+            <span className="module-tag">RECORDS</span>
             <h2>記帳記録</h2>
             <p>保存済みの記帳データを一覧で確認します。編集・削除・最新情報への更新もここから行えます。</p>
             <button className="primary-button" onClick={() => onNavigate("/accounting/records")}>記帳記録へ</button>
           </article>
           <article className="module-card accounting-menu-card">
-            <span className="module-tag">PAGE 3</span>
+            <span className="module-tag">ASSETS</span>
             <h2>初期資産・負債</h2>
             <p>銀行預金、証券口座、信用カード未払金などを登録し、純資産の出発点を確認します。</p>
             <button className="primary-button" onClick={() => onNavigate("/accounting/assets")}>資産・負債入力へ</button>
@@ -415,37 +422,52 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
       )}
 
       {view === "input" && (
-        <section className="panel form-panel">
-          <div className="section-heading">
-            <div><span className="section-number">PAGE 1</span><h2>{editingId !== null ? "記帳データを編集" : "記帳データを登録"}</h2></div>
-            <div className="inline-actions">
-              {editingId !== null && <button className="text-button" onClick={resetForm}>編集をキャンセル</button>}
-              <button className="text-button" onClick={() => onNavigate("/accounting/records")}>記録を見る</button>
+        <>
+          <section className="panel form-panel">
+            <div className="section-heading">
+              <div><span className="section-number">ENTRY</span><h2>{editingId !== null ? "記帳データを編集" : "記帳データを登録"}</h2></div>
+              <div className="inline-actions">
+                {editingId !== null && <button className="text-button" onClick={resetForm}>編集をキャンセル</button>}
+                <button className="text-button" onClick={() => onNavigate("/accounting/records")}>記録を見る</button>
+              </div>
             </div>
-          </div>
-          <form className="accounting-form" onSubmit={submit}>
-            <label>日付<input name="entryDate" type="date" value={form.entryDate} onChange={updateField} required /></label>
-            <label>種別<select name="type" value={form.type} onChange={updateField} required><option value="EXPENSE">支出</option><option value="INCOME">収入</option></select></label>
-            <label>カテゴリ<input name="category" value={form.category} onChange={updateField} list="accounting-categories" maxLength={80} required /></label>
-            <datalist id="accounting-categories">{categorySuggestions[form.type].map((category) => <option key={category} value={category} />)}</datalist>
-            <label>金額<input name="amount" type="number" min="0.01" step="0.01" value={form.amount} onChange={updateField} required /></label>
-            <label>入出金方法
-              <select name="paymentMethod" value={form.paymentMethod} onChange={updateField} required disabled={paymentMethodSuggestions.length === 0}>
-                <option value="">口座・項目を選択</option>
-                {paymentMethodSuggestions.map((method) => <option key={method} value={method}>{method}</option>)}
-              </select>
-            </label>
-            <label className="memo-field">メモ<input name="memo" value={form.memo} onChange={updateField} maxLength={255} placeholder="例：昼食、教材、交通費など" /></label>
-            <button className="primary-button" disabled={saving || paymentMethodSuggestions.length === 0}>{saving ? "保存中..." : editingId !== null ? "変更を保存" : "記帳する"}</button>
-          </form>
-          {paymentMethodSuggestions.length === 0 && <p className="form-hint">入出金方法を選ぶには、先に「初期資産・負債」ページで現金・銀行口座・カードなどの口座項目を登録してください。</p>}
-        </section>
+            <form className="accounting-form" onSubmit={submit}>
+              <label>日付<input name="entryDate" type="date" value={form.entryDate} onChange={updateField} required /></label>
+              <label>種別<select name="type" value={form.type} onChange={updateField} required><option value="EXPENSE">支出</option><option value="INCOME">収入</option></select></label>
+              <label>カテゴリ<input name="category" value={form.category} onChange={updateField} list="accounting-categories" maxLength={80} required /></label>
+              <datalist id="accounting-categories">{categorySuggestions[form.type].map((category) => <option key={category} value={category} />)}</datalist>
+              <label>金額<input name="amount" type="number" min="0.01" step="0.01" value={form.amount} onChange={updateField} required /></label>
+              <label>入出金方法
+                <select name="paymentMethod" value={form.paymentMethod} onChange={updateField} required disabled={paymentMethodSuggestions.length === 0}>
+                  <option value="">口座・項目を選択</option>
+                  {paymentMethodSuggestions.map((method) => <option key={method} value={method}>{method}</option>)}
+                </select>
+              </label>
+              <label className="memo-field">メモ<input name="memo" value={form.memo} onChange={updateField} maxLength={255} placeholder="例：昼食、教材、交通費など" /></label>
+              <button className="primary-button" disabled={saving || paymentMethodSuggestions.length === 0}>{saving ? "保存中..." : editingId !== null ? "変更を保存" : "記帳する"}</button>
+            </form>
+            {paymentMethodSuggestions.length === 0 && <p className="form-hint">入出金方法を選ぶには、先に「初期資産・負債」ページで現金・銀行口座・カードなどの口座項目を登録してください。</p>}
+          </section>
+          <section className="panel">
+            <div className="section-heading employee-list-heading">
+              <div><span className="section-number">THIS MONTH</span><h2>当月明細</h2><span className="record-count">{currentMonthEntries.length} 件</span></div>
+              <button className="refresh-button" onClick={() => void loadEntries()} disabled={loading}>
+                <span aria-hidden="true">↻</span> {loading ? "読込中..." : "最新情報に更新"}
+              </button>
+            </div>
+            {loading ? <div className="empty">MySQL データを読み込み中...</div> : currentMonthEntries.length === 0 ? <div className="empty">当月の記帳データはまだありません。</div> : (
+              <div className="table-wrap"><table><thead><tr><th>日付</th><th>種別</th><th>カテゴリ</th><th>入出金方法</th><th>金額</th><th>メモ</th><th>操作</th></tr></thead>
+                <tbody>{currentMonthEntries.map((entry) => <tr key={entry.id}><td>{entry.entryDate}</td><td><span className={`entry-badge ${entry.type.toLowerCase()}`}>{typeLabels[entry.type]}</span></td><td><strong>{entry.category}</strong></td><td>{entry.paymentMethod || "-"}</td><td className={entry.type === "INCOME" ? "income-text" : "expense-text"}>{formatCurrency(Number(entry.amount))}</td><td>{entry.memo || "-"}</td><td className="actions"><button onClick={() => startEdit(entry)}>編集</button><button className="danger" onClick={() => void remove(entry)}>削除</button></td></tr>)}</tbody>
+              </table></div>
+            )}
+          </section>
+        </>
       )}
 
       {view === "records" && (
         <section className="panel">
           <div className="section-heading employee-list-heading">
-            <div><span className="section-number">PAGE 2</span><h2>記帳一覧</h2><span className="record-count">{filteredEntries.length} / {entries.length} 件</span></div>
+            <div><span className="section-number">RECORDS</span><h2>記帳一覧</h2><span className="record-count">{filteredEntries.length} / {entries.length} 件</span></div>
             <div className="inline-actions">
               <button className="text-button" onClick={() => onNavigate("/accounting/input")}>記帳する</button>
               <button className="refresh-button" onClick={() => void loadEntries()} disabled={loading}>
@@ -520,7 +542,7 @@ export default function AccountingPage({ user, view, onBack, onLogout, onNavigat
           </section>
           <section className="panel form-panel" ref={balanceFormRef}>
             <div className="section-heading">
-              <div><span className="section-number">PAGE 3</span><h2>{editingBalanceId !== null ? "資産・負債を編集" : "資産・負債を登録"}</h2></div>
+              <div><span className="section-number">ASSETS</span><h2>{editingBalanceId !== null ? "資産・負債を編集" : "資産・負債を登録"}</h2></div>
               <div className="inline-actions">
                 {editingBalanceId !== null && <button className="text-button" onClick={resetBalanceForm}>編集をキャンセル</button>}
                 <button className="refresh-button" onClick={() => void loadBalances()} disabled={balancesLoading}>

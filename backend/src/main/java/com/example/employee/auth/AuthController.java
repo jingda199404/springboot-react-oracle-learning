@@ -32,11 +32,10 @@ public class AuthController {
     }
 
     @GetMapping("/session")
-    public ResponseEntity<Void> session(
+    public AuthResponse session(
             @RequestHeader("X-User-Id") Long userId,
             @RequestHeader("X-Session-Token") String sessionToken) {
-        service.validateSession(userId, sessionToken);
-        return ResponseEntity.noContent().build();
+        return service.validateSession(userId, sessionToken);
     }
 
     @PostMapping("/logout")

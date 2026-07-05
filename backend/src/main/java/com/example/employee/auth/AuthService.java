@@ -1,7 +1,11 @@
 package com.example.employee.auth;
 
+import com.example.employee.accounting.AccountingBalanceRepository;
+import com.example.employee.accounting.AccountingEntryRepository;
 import com.example.employee.error.AuthenticationException;
 import com.example.employee.error.ConflictException;
+import com.example.employee.japanese.JapaneseLearningService;
+import com.example.employee.stock.StockTradeService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -13,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,15 +28,32 @@ public class AuthService {
 
     public static final String ACCOUNTING_PERMISSION = "ACCOUNTING";
     public static final String PERMISSION_SETTING_PERMISSION = "PERMISSION_SETTING";
+    public static final String JAPANESE_LEARNING_PERMISSION = "JAPANESE_LEARNING";
+    public static final String STOCK_TRADING_PERMISSION = "STOCK_TRADING";
     public static final Duration SESSION_TIMEOUT = Duration.ofMinutes(30);
 
     private final AppUserRepository repository;
     private final PermissionRepository permissionRepository;
+    private final AccountingEntryRepository accountingEntryRepository;
+    private final AccountingBalanceRepository accountingBalanceRepository;
+    private final JapaneseLearningService japaneseLearningService;
+    private final StockTradeService stockTradeService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public AuthService(AppUserRepository repository, PermissionRepository permissionRepository) {
+    public AuthService(
+            AppUserRepository repository,
+            PermissionRepository permissionRepository,
+            AccountingEntryRepository accountingEntryRepository,
+            AccountingBalanceRepository accountingBalanceRepository,
+            JapaneseLearningService japaneseLearningService,
+            StockTradeService stockTradeService
+    ) {
         this.repository = repository;
         this.permissionRepository = permissionRepository;
+        this.accountingEntryRepository = accountingEntryRepository;
+        this.accountingBalanceRepository = accountingBalanceRepository;
+        this.japaneseLearningService = japaneseLearningService;
+        this.stockTradeService = stockTradeService;
     }
 
     @Transactional
@@ -66,6 +86,7 @@ public class AuthService {
         }
         ensureDefaultPermissions(user);
         String sessionToken = createSession(user);
+        repository.save(user);
         log.info("User logged in. userId={}, username={}", user.getId(), user.getUsername());
         return response(user, "ログインしました", sessionToken);
     }
@@ -74,12 +95,14 @@ public class AuthService {
     public void logout(Long userId, String sessionToken) {
         AppUser user = requireActiveSession(userId, sessionToken);
         clearSession(user);
+        repository.save(user);
         log.info("User logged out. userId={}, username={}", user.getId(), user.getUsername());
     }
 
     @Transactional(readOnly = true)
-    public void validateSession(Long userId, String sessionToken) {
-        requireActiveSession(userId, sessionToken, false);
+    public AuthResponse validateSession(Long userId, String sessionToken) {
+        AppUser user = requireActiveSession(userId, sessionToken, false);
+        return response(user, "セッションは有効です", sessionToken);
     }
 
     @Transactional
@@ -112,6 +135,7 @@ public class AuthService {
         }
         if (refreshActivity) {
             user.setSessionLastActivityAt(now);
+            repository.save(user);
         }
         return user;
     }
@@ -138,7 +162,7 @@ public class AuthService {
 
     public List<PermissionDto> findAllPermissions() {
         ensurePermissionMaster();
-        return permissionRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
+        return permissionRepository.findAll().stream()
                 .filter(permission -> !"EMPLOYEE".equals(permission.getCode()))
                 .map(permission -> new PermissionDto(permission.getCode(), permission.getLabel()))
                 .toList();
@@ -146,7 +170,7 @@ public class AuthService {
 
     public List<UserPermissionResponse> findAllUserPermissions() {
         ensurePermissionMaster();
-        return repository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
+        return repository.findAll().stream()
                 .peek(this::ensureDefaultPermissions)
                 .map(user -> new UserPermissionResponse(user.getId(), user.getUsername(), permissions(user)))
                 .toList();
@@ -154,6 +178,11 @@ public class AuthService {
 
     public List<UserPermissionResponse> findAllManagedUsers() {
         return findAllUserPermissions();
+    }
+
+    @Transactional
+    public void initializePermissionMaster() {
+        ensurePermissionMaster();
     }
 
     @Transactional
@@ -190,8 +219,30 @@ public class AuthService {
         if (!currentUserId.equals(targetUserId)) {
             clearSession(target);
         }
+        repository.save(target);
         log.info("User password updated. currentUserId={}, targetUserId={}", currentUserId, targetUserId);
         return new UserPermissionResponse(target.getId(), target.getUsername(), permissions(target));
+    }
+
+    @Transactional
+    public void deleteManagedUser(Long currentUserId, Long targetUserId) {
+        AppUser currentUser = findUser(currentUserId);
+        if (!permissions(currentUser).contains(PERMISSION_SETTING_PERMISSION)) {
+            throw new AuthenticationException("このページを利用する権限がありません");
+        }
+        if (currentUserId.equals(targetUserId)) {
+            throw new IllegalArgumentException("ログイン中のユーザーは削除できません");
+        }
+        AppUser target = findUser(targetUserId);
+        accountingEntryRepository.deleteByUserId(targetUserId);
+        accountingBalanceRepository.deleteByUserId(targetUserId);
+        japaneseLearningService.deleteUserData(targetUserId);
+        stockTradeService.deleteUserData(targetUserId);
+        target.getPermissionEntities().clear();
+        clearSession(target);
+        repository.delete(target);
+        log.info("Managed user deleted. currentUserId={}, targetUserId={}, username={}",
+                currentUserId, targetUserId, target.getUsername());
     }
 
     @Transactional
@@ -206,6 +257,7 @@ public class AuthService {
         AppUser target = findUser(targetUserId);
         target.setPermissionEntities(permissionEntities(codes == null ? List.of() : codes));
         target.setPermissions(null);
+        repository.save(target);
         log.info("User permissions updated. currentUserId={}, targetUserId={}, permissions={}",
                 currentUserId, targetUserId, codes == null ? List.of() : codes);
         return new UserPermissionResponse(target.getId(), target.getUsername(), permissions(target));
@@ -241,9 +293,9 @@ public class AuthService {
 
     private List<String> defaultPermissionCodes(String username) {
         if ("admin".equalsIgnoreCase(username)) {
-            return List.of(ACCOUNTING_PERMISSION, PERMISSION_SETTING_PERMISSION);
+            return List.of(ACCOUNTING_PERMISSION, JAPANESE_LEARNING_PERMISSION, STOCK_TRADING_PERMISSION, PERMISSION_SETTING_PERMISSION);
         }
-        return List.of(ACCOUNTING_PERMISSION);
+        return List.of(ACCOUNTING_PERMISSION, JAPANESE_LEARNING_PERMISSION, STOCK_TRADING_PERMISSION);
     }
 
     private void validateCredentials(String username, String password) {
@@ -266,6 +318,7 @@ public class AuthService {
         }
         user.setPermissionEntities(permissionEntities(legacyCodes.isEmpty() ? defaultPermissionCodes(user.getUsername()) : legacyCodes));
         user.setPermissions(null);
+        repository.save(user);
     }
 
     private List<String> legacyPermissionCodes(AppUser user) {
@@ -311,7 +364,11 @@ public class AuthService {
 
     private void ensurePermissionMaster() {
         createPermissionIfMissing(ACCOUNTING_PERMISSION, "家計簿");
+        createPermissionIfMissing(JAPANESE_LEARNING_PERMISSION, "日本語学習");
+        createPermissionIfMissing(STOCK_TRADING_PERMISSION, "株式取引");
         createPermissionIfMissing(PERMISSION_SETTING_PERMISSION, "権限設定");
+        ensureJapaneseLearningForExistingUsers();
+        ensureStockTradingForExistingUsers();
         ensureInitialPermissionAdmin();
     }
 
@@ -322,7 +379,7 @@ public class AuthService {
     }
 
     private void ensureInitialPermissionAdmin() {
-        List<AppUser> users = repository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+        List<AppUser> users = repository.findAll();
         if (users.isEmpty()) {
             return;
         }
@@ -337,5 +394,32 @@ public class AuthService {
         AppUser firstUser = users.get(0);
         permissionRepository.findByCode(ACCOUNTING_PERMISSION).ifPresent(firstUser.getPermissionEntities()::add);
         firstUser.getPermissionEntities().add(permission);
+        repository.save(firstUser);
+    }
+
+    private void ensureJapaneseLearningForExistingUsers() {
+        Permission japaneseLearning = permissionRepository.findByCode(JAPANESE_LEARNING_PERMISSION)
+                .orElseThrow(() -> new IllegalStateException("権限マスタが見つかりません：" + JAPANESE_LEARNING_PERMISSION));
+        repository.findAll().forEach(user -> {
+            boolean alreadyGranted = user.getPermissionEntities().stream()
+                    .anyMatch(permission -> JAPANESE_LEARNING_PERMISSION.equals(permission.getCode()));
+            if (!alreadyGranted) {
+                user.getPermissionEntities().add(japaneseLearning);
+                repository.save(user);
+            }
+        });
+    }
+
+    private void ensureStockTradingForExistingUsers() {
+        Permission stockTrading = permissionRepository.findByCode(STOCK_TRADING_PERMISSION)
+                .orElseThrow(() -> new IllegalStateException("権限マスタが見つかりません：" + STOCK_TRADING_PERMISSION));
+        repository.findAll().forEach(user -> {
+            boolean alreadyGranted = user.getPermissionEntities().stream()
+                    .anyMatch(permission -> STOCK_TRADING_PERMISSION.equals(permission.getCode()));
+            if (!alreadyGranted) {
+                user.getPermissionEntities().add(stockTrading);
+                repository.save(user);
+            }
+        });
     }
 }

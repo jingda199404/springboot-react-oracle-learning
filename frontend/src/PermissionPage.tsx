@@ -75,9 +75,9 @@ export default function PermissionPage({ user, onBack, onLogout }: PermissionPag
       </header>
       <header className="hero">
         <div>
-          <span className="eyebrow">PERMISSION TABLE ADMIN</span>
+          <span className="eyebrow">PRIVATE ACCESS CONTROL</span>
           <h1>権限設定</h1>
-          <p>権限マスタとユーザー権限の関連テーブルで、利用できるページを管理します。</p>
+          <p>ユーザーごとに利用できるページを管理します。</p>
         </div>
         <div className="summary">
           <span>ユーザー数</span>
