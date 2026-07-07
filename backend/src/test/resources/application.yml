@@ -10,5 +10,7 @@ spring:
       continue-on-error: true
 
 app:
+  auth:
+    registration-enabled: true
   cors:
     allowed-origin: http://localhost:5173

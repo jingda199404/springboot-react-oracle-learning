@@ -57,8 +57,11 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse register(AuthRequest request) {
+    public AuthResponse register(AuthRequest request, boolean publicRegistrationEnabled) {
         ensurePermissionMaster();
+        if (!publicRegistrationEnabled && repository.existsAny()) {
+            throw new AuthenticationException("新規登録は管理者ページから行ってください");
+        }
         String username = request.username().trim();
         if (repository.existsByUsernameIgnoreCase(username)) {
             throw new ConflictException("このユーザー名はすでに登録されています：" + username);

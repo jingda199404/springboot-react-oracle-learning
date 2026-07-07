@@ -53,6 +53,11 @@ public class AppUserRepository {
         return count != null && count > 0;
     }
 
+    public boolean existsAny() {
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM APP_USERS", Integer.class);
+        return count != null && count > 0;
+    }
+
     public List<AppUser> findAll() {
         return jdbcTemplate.query("SELECT * FROM APP_USERS ORDER BY ID ASC", rowMapper).stream()
                 .map(this::attachPermissions)

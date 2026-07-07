@@ -2,6 +2,7 @@ package com.example.employee.auth;
 
 import jakarta.validation.Valid;
 import java.net.URI;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -15,14 +16,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService service;
+    private final boolean publicRegistrationEnabled;
 
-    public AuthController(AuthService service) {
+    public AuthController(AuthService service, @Value("${app.auth.registration-enabled:false}") boolean publicRegistrationEnabled) {
         this.service = service;
+        this.publicRegistrationEnabled = publicRegistrationEnabled;
     }
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRequest request) {
-        AuthResponse response = service.register(request);
+        AuthResponse response = service.register(request, publicRegistrationEnabled);
         return ResponseEntity.created(URI.create("/api/users/" + response.id())).body(response);
     }
 
